@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>web 312</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000000;
+            background: radial-gradient(circle at center, #0d0020 0%, #000000 80%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        #hint {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 15px;
+            pointer-events: none;
+            z-index: 10;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 1px;
+            animation: pulseText 2s infinite alternate;
+        }
+        @keyframes pulseText {
+            0% { opacity: 0.5; transform: scale(0.98); }
+            100% { opacity: 1; transform: scale(1.02); }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="hint">Eres el tipo de persona que hace que el mundo tenga más sentido</div>
+    <script>
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 45);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setClearColor(0x000000);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.8;
+        controls.enablePan = false;
+        controls.minDistance = 20;
+        controls.maxDistance = 80;
+
+        const planetGroup = new THREE.Group();
+        scene.add(planetGroup);
+
+        const sphereGeo = new THREE.SphereGeometry(4, 64, 64);
+        const sphereMat = new THREE.MeshBasicMaterial({ color: 0x5a0080 });
+        const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+        planetGroup.add(sphere);
+
+        const glowGeo = new THREE.SphereGeometry(4.3, 64, 64);
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0x9b30ff, transparent: true, opacity: 0.15 });
+        const glow = new THREE.Mesh(glowGeo, glowMat);
+        planetGroup.add(glow);
+
+        const ringGeo = new THREE.RingGeometry(6, 8.5, 64);
+        const ringMat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI / 2 - 0.2;
+        planetGroup.add(ring);
+
+        const ringGeo2 = new THREE.RingGeometry(9, 9.5, 64);
+        const ringMat2 = new THREE.MeshBasicMaterial({ color: 0xff66cc, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
+        const ring2 = new THREE.Mesh(ringGeo2, ringMat2);
+        ring2.rotation.x = Math.PI / 2 - 0.2;
+        planetGroup.add(ring2);
+
+        function createHeartParticleTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#dd44ff';
+            ctx.font = 'bold 20px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#ff88ee';
+            ctx.shadowBlur = 8;
+            ctx.fillText('❤', 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function createRoseTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'bold 28px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#cc00ff';
+            ctx.shadowBlur = 10;
+            ctx.fillText('🌸', 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const heartCount = 1200;
+        const heartGeo = new THREE.BufferGeometry();
+        const hPositions = new Float32Array(heartCount * 3);
+        const hTValues = new Float32Array(heartCount);
+        const hOffsets = new Float32Array(heartCount * 3);
+        for (let i = 0; i < heartCount; i++) {
+            hTValues[i] = Math.random() * Math.PI * 2;
+            hOffsets[i*3] = (Math.random() - 0.5) * 1.5;
+            hOffsets[i*3+1] = (Math.random() - 0.5) * 1.5;
+            hOffsets[i*3+2] = (Math.random() - 0.5) * 6;
+        }
+        heartGeo.setAttribute('position', new THREE.BufferAttribute(hPositions, 3));
+        const heartMat = new THREE.PointsMaterial({
+            size: 2,
+            map: createHeartParticleTexture(),
+            transparent: true,
+            opacity: 0.9,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const heartMesh = new THREE.Points(heartGeo, heartMat);
+        scene.add(heartMesh);
+
+        const roseCount = 60;
+        const roseGeo = new THREE.BufferGeometry();
+        const rosePositions = new Float32Array(roseCount * 3);
+        const roseAngles = new Float32Array(roseCount);
+        const roseRadii = new Float32Array(roseCount);
+        const roseHeights = new Float32Array(roseCount);
+        for (let i = 0; i < roseCount; i++) {
+            roseAngles[i] = Math.random() * Math.PI * 2;
+            roseRadii[i] = 10 + Math.random() * 18;
+            roseHeights[i] = (Math.random() - 0.5) * 14;
+        }
+        roseGeo.setAttribute('position', new THREE.BufferAttribute(rosePositions, 3));
+        const roseMat = new THREE.PointsMaterial({
+            size: 3.5,
+            map: createRoseTexture(),
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false,
+            blending: THREE.NormalBlending
+        });
+        const roseMesh = new THREE.Points(roseGeo, roseMat);
+        scene.add(roseMesh);
+
+        // ✅ CORREGIDO: "Saturno" con comilla de cierre
+        const palabras = ["❤️ te quiero", "✨ Mi sol", "🌌 eres el universo", "🔥 Pasión", "🥰 Dulzura", "🪐estrellas", "🌟 Brillas", "💕 Ternura", "Saturno", "💖 Felicidad", "💫 Esperanza", "👑 Reina", "🍒 lokita", "🌹  flor", "🦋 Libertad", "🧸 calma", "🌠 Sueños", "🔒 Eternidad", "Alegre", "🎉 bella", "♾️ Siempre", "⚓ como las olas del mar", "unica"];
+
+        function crearTextoSprite(texto) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = 512;
+            canvas.height = 128;
+            context.font = "bold 38px 'Segoe UI', Arial";
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            context.shadowColor = "rgba(180, 0, 255, 0.8)";
+            context.shadowBlur = 15;
+            context.fillStyle = "#ffffff";
+            context.fillText(texto, canvas.width / 2, canvas.height / 2);
+            const textura = new THREE.Texture(canvas);
+            textura.needsUpdate = true;
+            const material = new THREE.SpriteMaterial({ map: textura, transparent: true, opacity: 0.9 });
+            const sprite = new THREE.Sprite(material);
+            sprite.scale.set(18, 4.5, 1);
+            return sprite;
+        }
+
+        const particulasTextos = new THREE.Group();
+        scene.add(particulasTextos);
+        const cantidadTextos = 80;
+        for (let i = 0; i < cantidadTextos; i++) {
+            const palabraRandom = palabras[Math.floor(Math.random() * palabras.length)];
+            const sprite = crearTextoSprite(palabraRandom);
+            const radio = 20 + Math.random() * 25;
+            const angulo = Math.random() * Math.PI * 2;
+            const altura = (Math.random() - 0.5) * 40;
+            sprite.position.x = radio * Math.cos(angulo);
+            sprite.position.y = altura;
+            sprite.position.z = radio * Math.sin(angulo);
+            const escalaRandom = 0.5 + Math.random() * 0.6;
+            sprite.scale.multiplyScalar(escalaRandom);
+            particulasTextos.add(sprite);
+        }
+
+        const estrellasGeo = new THREE.BufferGeometry();
+        const cantidadEstrellas = 1500;
+        const posicionesEstrellas = new Float32Array(cantidadEstrellas * 3);
+        for(let i=0; i < cantidadEstrellas * 3; i++) {
+            posicionesEstrellas[i] = (Math.random() - 0.5) * 250;
+        }
+        estrellasGeo.setAttribute('position', new THREE.BufferAttribute(posicionesEstrellas, 3));
+        const estrellasMat = new THREE.PointsMaterial({ color: 0xdd99ff, size: 0.4, transparent: true, opacity: 0.6 });
+        const estrellas = new THREE.Points(estrellasGeo, estrellasMat);
+        scene.add(estrellas);
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const clock = new THREE.Clock();
+        function animar() {
+            requestAnimationFrame(animar);
+            const time = clock.getElapsedTime();
+            controls.update();
+            planetGroup.position.y = Math.sin(time * 1.5) * 0.5;
+            ring.rotation.z -= 0.002;
+            ring2.rotation.z += 0.001;
+            particulasTextos.rotation.y += 0.001;
+            estrellas.rotation.y += 0.0003;
+
+            const positions = heartMesh.geometry.attributes.position.array;
+            for (let i = 0; i < heartCount; i++) {
+                hTValues[i] += 0.002;
+                const t = hTValues[i];
+                let x = 16 * Math.pow(Math.sin(t), 3);
+                let y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                x *= 0.7;
+                y *= 0.7;
+                positions[i*3] = x + hOffsets[i*3];
+                positions[i*3+1] = y + hOffsets[i*3+1] + Math.sin(time * 1.5) * 0.5;
+                positions[i*3+2] = hOffsets[i*3+2];
+            }
+            heartMesh.geometry.attributes.position.needsUpdate = true;
+            const pulse = 1 + Math.sin(time * 2) * 0.03;
+            heartMesh.scale.set(pulse, pulse, pulse);
+
+            const rp = roseMesh.geometry.attributes.position.array;
+            for (let i = 0; i < roseCount; i++) {
+                roseAngles[i] += 0.003 + i * 0.00005;
+                rp[i*3]   = roseRadii[i] * Math.cos(roseAngles[i]);
+                rp[i*3+1] = roseHeights[i] + Math.sin(time * 0.7 + i) * 1.5;
+                rp[i*3+2] = roseRadii[i] * Math.sin(roseAngles[i]);
+            }
+            roseMesh.geometry.attributes.position.needsUpdate = true;
+
+            renderer.render(scene, camera);
+        }
+        animar();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/js/all.min.js"></script>
+    <script>
+    function iniciarMusica() {
+        let musicaReproducida = false;
+        let audio = null;
+        function crearControlMusica() {
+            const musicControl = document.createElement('div');
+            musicControl.innerHTML = '<i class="fas fa-heart"></i>';
+            musicControl.style.position = 'fixed';
+            musicControl.style.bottom = '20px';
+            musicControl.style.left = '20px';
+            musicControl.style.zIndex = '1000';
+            musicControl.style.background = 'linear-gradient(180deg, #cc44ff 0%, #9900cc 50%, #6600aa 100%)';
+            musicControl.style.borderRadius = '50%';
+            musicControl.style.width = '50px';
+            musicControl.style.height = '50px';
+            musicControl.style.display = 'flex';
+            musicControl.style.alignItems = 'center';
+            musicControl.style.justifyContent = 'center';
+            musicControl.style.cursor = 'pointer';
+            musicControl.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.3)';
+            musicControl.style.transition = 'all 0.3s ease';
+            musicControl.style.color = 'white';
+            musicControl.style.fontSize = '22px';
+            audio = new Audio();
+            audio.src = 'https://bcodestorague.anteroteobaldob.workers.dev/share/anteroteobaldob_gmail_com/AUDIO/Until%20i%20found%20you.mp3';
+            audio.loop = true;
+            audio.volume = 0.7;
+            audio.preload = 'auto';
+            audio.load();
+            musicControl.addEventListener('mouseenter', function() {
+                this.style.transform = 'scale(1.1)';
+            });
+            musicControl.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+            musicControl.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!musicaReproducida) {
+                    audio.play().then(() => { musicaReproducida = true; }).catch(() => {});
+                }
+            });
+            musicControl.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!musicaReproducida) {
+                    audio.play().then(() => { musicaReproducida = true; }).catch(() => {});
+                }
+                if (musicaReproducida) {
+                    audio.muted = !audio.muted;
+                    this.innerHTML = audio.muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-heart"></i>';
+                }
+            });
+            document.body.appendChild(musicControl);
+        }
+        crearControlMusica();
+        const eventos = ['click', 'touchstart', 'keydown', 'mousedown'];
+        eventos.forEach(evento => {
+            document.addEventListener(evento, function() {
+                if (!musicaReproducida && audio) {
+                    audio.play().then(() => { musicaReproducida = true; }).catch(() => {});
+                }
+            }, { once: false });
+        });
+    }
+    iniciarMusica();
+    </script>
+</body>
+</html>
